@@ -14,7 +14,7 @@ EXECUTABLE = main
 
 all: $(EXECUTABLE)
 
-mian: main.c $(DEPS)
+main: main.c $(DEPS)
 	$(CC) -o $@ $^ -lpthread
 
 clean:
