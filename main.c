@@ -19,12 +19,14 @@ pthread_mutex_t emergencyFlagMutex;
 
 double states[10];
 double IMUData[6];
+double distanceSensorData[8];
+double photoElectricData[9];
 
 
 // emergency control flags from command point
-bool forcedBreak;
-bool forcedEmergencyBreak;
-bool forcedLateralCorrect;
+int forcedBreak;
+int forcedEmergencyBreak;
+int forcedLateralCorrect;
 
 
 
@@ -34,6 +36,8 @@ void *kalmanFunction(void *arg) {
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		// Kalman code goes here
+		for (int i = 1; i < 200000000; i++) {}
+
 		
 		pthread_mutex_lock(&statesMutex);
 		pthread_mutex_unlock(&statesMutex);
@@ -76,6 +80,8 @@ void *imuDataFunction(void *arg) {
 
 void *lateralControlFunction(void *arg) {
 	while(1) {
+		printf("lateral control function being called");
+		fflush(stdout);
 		pthread_mutex_lock(&emergencyFlagMutex);
 		pthread_mutex_unlock(&emergencyFlagMutex);
 
@@ -121,7 +127,7 @@ void *DataDisplayFunction(void *arg) {
 void setPriority(pthread_t task, int priority) {
 	struct sched_param sp;
     sp.sched_priority = priority;
-    if(pthread_setschedparam(task, SCHED_FIFO, sp)){
+    if(pthread_setschedparam(task, SCHED_RR, &sp)){
             fprintf(stderr,"WARNING: Failed to set stepper thread"
                     "to real-time priority\n");
     }
@@ -151,29 +157,17 @@ int main()
 	pthread_create(&lateralControl, NULL, lateralControlFunction, NULL);
 	pthread_create(&dataDisplay, NULL, DataDisplayFunction, NULL);
 
-	setPriority(kalman, 1);
-	setPriority(photoElectric, 1);
-	setPriority(imu, 1);
-	setPriority(distance, 2);
-	setPriority(braking, 2);
-	setPriority(lateralControl, 3);
-	setPriority(dataDisplay, 3);
+	setPriority(kalman, 30);
+	setPriority(photoElectric, 30);
+	setPriority(imu, 30);
+	setPriority(distance, 25);
+	setPriority(braking, 20);
+	setPriority(lateralControl, 15);
+	setPriority(dataDisplay, 10);
 
 	while(1) {
-		if (done = true) {
-			break;
-		}
-		usleep(1000)
 
 	}
-
-	ptrhead_mutex_destroy(kalman);
-	ptrhead_mutex_destroy(photoElectric);
-	ptrhead_mutex_destroy(imu);
-	ptrhead_mutex_destroy(distance);
-	ptrhead_mutex_destroy(braking);
-	ptrhead_mutex_destroy(lateralControl);
-	ptrhead_mutex_destroy(dataDisplay);
 
 	return 0;
 }
