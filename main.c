@@ -42,7 +42,6 @@ void *kalmanFunction(void *arg) {
 		pthread_mutex_lock(&statesMutex);
 		pthread_mutex_unlock(&statesMutex);
 
-		usleep(1000);
 	}
 }
 
@@ -53,7 +52,6 @@ void *photoElectricFunction(void *arg) {
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
 
-		usleep(500);
 
 	}
 }
@@ -65,7 +63,6 @@ void *distanceSensorFunction(void *arg) {
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
 
-		usleep(10000);
 	}
 }
 
@@ -74,7 +71,6 @@ void *imuDataFunction(void *arg) {
 		// get IMU data
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
-		usleep(1000);
 	}
 }
 
@@ -90,7 +86,6 @@ void *lateralControlFunction(void *arg) {
 
 		// determine lateral control plan
 
-		usleep(20000);
 	}
 }
 
@@ -103,8 +98,6 @@ void *brakingFunction(void *arg) {
 		pthread_mutex_unlock(&statesMutex);
 
 		// determine braking
-
-		usleep(20000);
 
 	}
 }
@@ -120,17 +113,23 @@ void *DataDisplayFunction(void *arg) {
 		// display shit
 		pthread_mutex_unlock(&statesMutex);
 
-		usleep(5000);
 	}
 }
 
-void setPriority(pthread_t task, int priority) {
+void setScheduling(pthread_t taskID, int period, int deadline, int runtime) {
+	// times are all in nanoseconds
 	struct sched_param sp;
-    sp.sched_priority = priority;
-    if(pthread_setschedparam(task, SCHED_RR, &sp)){
-            fprintf(stderr,"WARNING: Failed to set stepper thread"
-                    "to real-time priority\n");
-    }
+	sp.sched_policy = SCHED_DEADLINE;
+    sp.sched_priority = 0;
+    sp.sched_period = period;
+    sp.sched_deadline = deadline;
+    sp.sched_runtime = runtime;
+    ret = sched_setattr(taskID, &sp, 0);
+	if (ret != 0) {
+		printf(stderr, "sched_setattr "
+			     "returned %d", ret);
+//		exit(EXIT_FAILURE);
+	}
 }
 
 int main()
@@ -157,16 +156,16 @@ int main()
 	pthread_create(&lateralControl, NULL, lateralControlFunction, NULL);
 	pthread_create(&dataDisplay, NULL, DataDisplayFunction, NULL);
 
-	setPriority(kalman, 30);
-	setPriority(photoElectric, 30);
-	setPriority(imu, 30);
-	setPriority(distance, 25);
-	setPriority(braking, 20);
-	setPriority(lateralControl, 15);
-	setPriority(dataDisplay, 10);
+	setScheduling(kalman, 1000, 1000, 500);
+	setScheduling(photoElectric, 200, 200, 20);
+	setScheduling(imu, 1000, 1000, 20);
+	setScheduling(distance, 5000, 5000, 100);
+	setScheduling(braking, 10000, 10000, 30);
+	setScheduling(lateralControl, 20000, 20000, 100);
+	setScheduling(dataDisplay, 10000, 10000, 100);
 
 	while(1) {
-
+ 
 	}
 
 	return 0;
