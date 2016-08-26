@@ -1,9 +1,9 @@
 // Written by OpenLoop Hyperloop Team, August 2016
 
 #include "libBBB.h"
-#include <pthread.h>
-#include <semaphore.h>
+#include <sched.h>
 
+#define SCHED_DEADLINE 6
 
 // methods of pod control
 const int TEST_MODE = 1;
@@ -29,14 +29,14 @@ int forcedEmergencyBreak;
 int forcedLateralCorrect;
 
 
-
 void *kalmanFunction(void *arg) {
 	while(1) {
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		// Kalman code goes here
-		for (int i = 1; i < 200000000; i++) {}
+		int i = 0;
+		for (i = 1; i < 200000000; i++) {}
 
 		
 		pthread_mutex_lock(&statesMutex);
@@ -118,13 +118,13 @@ void *DataDisplayFunction(void *arg) {
 
 void setScheduling(pthread_t taskID, int period, int deadline, int runtime) {
 	// times are all in nanoseconds
-	struct sched_param sp;
-	sp.sched_policy = SCHED_DEADLINE;
+	struct sched_attr sp;
+	sp.sched_policy = SCHED_RR;
     sp.sched_priority = 0;
     sp.sched_period = period;
     sp.sched_deadline = deadline;
     sp.sched_runtime = runtime;
-    ret = sched_setattr(taskID, &sp, 0);
+    int ret = sched_setattr(taskID, &sp, 0);
 	if (ret != 0) {
 		printf(stderr, "sched_setattr "
 			     "returned %d", ret);
