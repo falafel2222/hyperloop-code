@@ -3,8 +3,6 @@
 #include "libBBB.h"
 #include <sched.h>
 
-#define SCHED_DEADLINE 6
-
 // methods of pod control
 const int TEST_MODE = 1;
 const int PUSHER_PHASE = 2;
@@ -19,14 +17,12 @@ pthread_mutex_t emergencyFlagMutex;
 
 double states[10];
 double IMUData[6];
-double distanceSensorData[8];
-double photoElectricData[9];
 
 
 // emergency control flags from command point
-int forcedBreak;
-int forcedEmergencyBreak;
-int forcedLateralCorrect;
+bool forcedBreak;
+bool forcedEmergencyBreak;
+bool forcedLateralCorrect;
 
 
 void *kalmanFunction(void *arg) {
@@ -37,7 +33,6 @@ void *kalmanFunction(void *arg) {
 		// Kalman code goes here
 		int i = 0;
 		for (i = 1; i < 200000000; i++) {}
-
 		
 		pthread_mutex_lock(&statesMutex);
 		pthread_mutex_unlock(&statesMutex);
@@ -76,8 +71,6 @@ void *imuDataFunction(void *arg) {
 
 void *lateralControlFunction(void *arg) {
 	while(1) {
-		printf("lateral control function being called");
-		fflush(stdout);
 		pthread_mutex_lock(&emergencyFlagMutex);
 		pthread_mutex_unlock(&emergencyFlagMutex);
 
@@ -116,20 +109,14 @@ void *DataDisplayFunction(void *arg) {
 	}
 }
 
-void setScheduling(pthread_t taskID, int period, int deadline, int runtime) {
-	// times are all in nanoseconds
-	struct sched_attr sp;
-	sp.sched_policy = SCHED_RR;
-    sp.sched_priority = 0;
-    sp.sched_period = period;
-    sp.sched_deadline = deadline;
-    sp.sched_runtime = runtime;
-    int ret = sched_setattr(taskID, &sp, 0);
-	if (ret != 0) {
-		printf(stderr, "sched_setattr "
-			     "returned %d", ret);
-//		exit(EXIT_FAILURE);
-	}
+
+void setPriority(pthread_t task, int priority) {
+	struct sched_param sp;
+    sp.sched_priority = priority;
+    if(pthread_setschedparam(task, SCHED_RR, sp)){
+            fprintf(stderr,"WARNING: Failed to set stepper thread"
+                    "to real-time priority\n");
+    }
 }
 
 int main()
@@ -156,17 +143,25 @@ int main()
 	pthread_create(&lateralControl, NULL, lateralControlFunction, NULL);
 	pthread_create(&dataDisplay, NULL, DataDisplayFunction, NULL);
 
-	setScheduling(kalman, 1000, 1000, 500);
-	setScheduling(photoElectric, 200, 200, 20);
-	setScheduling(imu, 1000, 1000, 20);
-	setScheduling(distance, 5000, 5000, 100);
-	setScheduling(braking, 10000, 10000, 30);
-	setScheduling(lateralControl, 20000, 20000, 100);
-	setScheduling(dataDisplay, 10000, 10000, 100);
+
+	setPriority(kalman, 1);
+	setPriority(photoElectric, 1);
+	setPriority(imu, 1);
+	setPriority(distance, 2);
+	setPriority(braking, 2);
+	setPriority(lateralControl, 3);
+	setPriority(dataDisplay, 3);
 
 	while(1) {
- 
+
+		usleep(1000)
 	}
+
+	ptrhead_mutex_destroy(sensorDataMutex);
+	ptrhead_mutex_destroy(statesMutex);
+	ptrhead_mutex_destroy(podPhaseMutex);
+	ptrhead_mutex_destroy(plantCommandMutex);
+	ptrhead_mutex_destroy(emergencyFlagMutex);
 
 	return 0;
 }
