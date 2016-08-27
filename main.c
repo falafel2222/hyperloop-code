@@ -1,7 +1,7 @@
 // Written by OpenLoop Hyperloop Team, August 2016
 
 #include "libBBB.h"
-#include <sched.h>
+#include <pthread.h>
 
 // methods of pod control
 const int TEST_MODE = 1;
@@ -20,9 +20,9 @@ double IMUData[6];
 
 
 // emergency control flags from command point
-bool forcedBreak;
-bool forcedEmergencyBreak;
-bool forcedLateralCorrect;
+int forcedBreak;
+int forcedEmergencyBreak;
+int forcedLateralCorrect;
 
 
 void *kalmanFunction(void *arg) {
@@ -113,7 +113,7 @@ void *DataDisplayFunction(void *arg) {
 void setPriority(pthread_t task, int priority) {
 	struct sched_param sp;
     sp.sched_priority = priority;
-    if(pthread_setschedparam(task, SCHED_RR, sp)){
+    if(pthread_setschedparam(task, SCHED_RR, &sp)){
             fprintf(stderr,"WARNING: Failed to set stepper thread"
                     "to real-time priority\n");
     }
@@ -154,14 +154,14 @@ int main()
 
 	while(1) {
 
-		usleep(1000)
+		usleep(1000);
 	}
 
-	ptrhead_mutex_destroy(sensorDataMutex);
-	ptrhead_mutex_destroy(statesMutex);
-	ptrhead_mutex_destroy(podPhaseMutex);
-	ptrhead_mutex_destroy(plantCommandMutex);
-	ptrhead_mutex_destroy(emergencyFlagMutex);
+	pthread_mutex_destroy(&sensorDataMutex);
+	pthread_mutex_destroy(&statesMutex);
+	pthread_mutex_destroy(&podPhaseMutex);
+	pthread_mutex_destroy(&plantCommandMutex);
+	pthread_mutex_destroy(&emergencyFlagMutex);
 
 	return 0;
 }
