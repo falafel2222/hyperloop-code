@@ -65,14 +65,14 @@ void *kalmanFunction(void *arg) {
 
 		// Kalman code goes here
 		int i = 0;
-		for (i = 1; i < 200000; i++) {}
+		for (i = 1; i < 20000; i++) {}
 		
 		pthread_mutex_lock(&statesMutex);
 		pthread_mutex_unlock(&statesMutex);
 
 		timespent = getTime() - kalmanStart;
-		if (timespent < 0 )
-				printf("Error: Kalman failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		if (timespent > kalmanPeriod )
+				printf("Error: Kalman failed to meet Deadline by %li nanosecons\n", timespent);
 		else
 			usleep(kalmanPeriod - timespent);
 	}
@@ -81,14 +81,15 @@ void *kalmanFunction(void *arg) {
 void *photoelectricFunction(void *arg) {
 	long timespent = 0; 
 	while(1) {
+		photoelectricStart = getTime();
 		// get photoelectric data
 		// calculate stuff
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - photoelectricStart;
-		if (timespent < 0 )
-				printf("Error: photoelectric failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		if (timespent > photoelectricPeriod )
+				printf("Error: photoelectric failed to meet Deadline by %li nanosecons\n", timespent);
 		else
 			usleep(photoelectricPeriod - timespent);
 	}
@@ -97,14 +98,15 @@ void *photoelectricFunction(void *arg) {
 void *distanceSensorFunction(void *arg) {
 	long timespent = 0; 
 	while(1) {
+		distanceStart = getTime();
 		// get distance sensor data
 		// calculate stuff
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - distanceStart;
-		if (timespent < 0 )
-				printf("Error: distance sensor failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		if (timespent > distancePeriod )
+				printf("Error: distance sensor failed to meet Deadline by %li nanosecons\n", timespent);
 		else
 			usleep(distancePeriod - timespent);
 	}
@@ -113,13 +115,14 @@ void *distanceSensorFunction(void *arg) {
 void *imuDataFunction(void *arg) {
 	long timespent = 0; 
 	while(1) {
+		imuStart = getTime();
 		// get IMU data
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - imuStart;
-		if (timespent < 0 )
-				printf("Error: imu failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		if (timespent > imuPeriod )
+				printf("Error: imu failed to meet Deadline by %li nanosecons\n", timespent);
 		else
 			usleep(imuPeriod - timespent);
 	}
@@ -128,6 +131,7 @@ void *imuDataFunction(void *arg) {
 void *lateralControlFunction(void *arg) {
 	long timespent = 0; 
 	while(1) {
+		lateralControlStart = getTime();
 		pthread_mutex_lock(&emergencyFlagMutex);
 		pthread_mutex_unlock(&emergencyFlagMutex);
 
@@ -137,8 +141,8 @@ void *lateralControlFunction(void *arg) {
 		// determine lateral control plan
 
 		timespent = getTime() - lateralControlStart;
-		if (timespent < 0 )
-				printf("Error: lat control failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		if (timespent > lateralControlPeriod )
+				printf("Error: lat control failed to meet Deadline by %li nanosecons\n", timespent);
 		else
 			usleep(lateralControlPeriod - timespent);
 	}
@@ -147,6 +151,7 @@ void *lateralControlFunction(void *arg) {
 void *brakingFunction(void *arg) {
 	long timespent = 0; 
 	while(1) {
+		brakingStart = getTime();
 		pthread_mutex_lock(&emergencyFlagMutex);
 		pthread_mutex_unlock(&emergencyFlagMutex);
 
@@ -156,8 +161,8 @@ void *brakingFunction(void *arg) {
 		// determine braking
 
 		timespent = getTime() - brakingStart;
-		if (timespent < 0 )
-				printf("Error: braking failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		if (timespent > brakingPeriod )
+				printf("Error: braking failed to meet Deadline by %li nanosecons\n", timespent);
 		else
 			usleep(brakingPeriod - timespent);
 	}
@@ -166,7 +171,7 @@ void *brakingFunction(void *arg) {
 void *DataDisplayFunction(void *arg) {
 	long timespent = 0; 
 	while(1) {
-
+		dataDisplayStart = getTime();
 		pthread_mutex_lock(&sensorDataMutex);
 		// display shit
 		pthread_mutex_unlock(&sensorDataMutex);
@@ -176,8 +181,8 @@ void *DataDisplayFunction(void *arg) {
 		pthread_mutex_unlock(&statesMutex);
 
 		timespent = getTime() - dataDisplayStart;
-		if (timespent < 0 )
-				printf("Error: data display failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		if (timespent > dataDisplayPeriod )
+				printf("Error: data display failed to meet Deadline by %li nanosecons\n", timespent);
 		else
 		usleep(dataDisplayPeriod - timespent);
 	}
@@ -229,7 +234,7 @@ int main()
 	while(1){
 
 		usleep(1000);
-		fflush();
+		fflush(stdout);
 	}
 
 	pthread_mutex_destroy(&sensorDataMutex);
