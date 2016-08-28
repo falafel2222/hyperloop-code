@@ -2,7 +2,7 @@
 
 #include "libBBB.h"
 #include <pthread.h>
-#include <time.h>
+#include <sys/time.h>
 
 // methods of pod control
 const int TEST_MODE = 1;
@@ -18,7 +18,7 @@ pthread_mutex_t emergencyFlagMutex;
 
 
 long kalmanStart = 0;
-long photoElectricStart = 0;
+long photoelectricStart = 0;
 long distanceStart = 0;
 long imuStart = 0;
 long lateralControlStart = 0;
@@ -26,7 +26,7 @@ long brakingStart = 0;
 long dataDisplayStart = 0;
 
 long kalmanPeriod = 1000;
-long photoElectricPeriod = 200;
+long photoelectricPeriod = 200;
 long distancePeriod = 5000;
 long imuPeriod = 1000;
 long lateralControlPeriod = 15000;
@@ -42,7 +42,12 @@ long getTime(){
 
 double states[10];
 double IMUData[6];
+double distanceSensorData[8];
+double photoelectricSensorData[9];
 
+int imuSet = 0;
+int distanceSensorSet = 0;
+int photoelectricSet = 0;
 
 // emergency control flags from command point
 int forcedBreak;
@@ -66,20 +71,26 @@ void *kalmanFunction(void *arg) {
 		pthread_mutex_unlock(&statesMutex);
 
 		timespent = getTime() - kalmanStart;
-		usleep(kalmanPeriod - timespent);
+		if (timespent < 0 )
+				printf("Error: Kalman failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		else
+			usleep(kalmanPeriod - timespent);
 	}
 }
 
-void *photoElectricFunction(void *arg) {
+void *photoelectricFunction(void *arg) {
 	long timespent = 0; 
 	while(1) {
-		// get photoElectric data
+		// get photoelectric data
 		// calculate stuff
 		pthread_mutex_lock(&sensorDataMutex);
 		pthread_mutex_unlock(&sensorDataMutex);
 
-		timespent = getTime() - photoElectricStart;
-		usleep(photoElectricPeriod - timespent);
+		timespent = getTime() - photoelectricStart;
+		if (timespent < 0 )
+				printf("Error: photoelectric failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		else
+			usleep(photoelectricPeriod - timespent);
 	}
 }
 
@@ -92,7 +103,10 @@ void *distanceSensorFunction(void *arg) {
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - distanceStart;
-		usleep(distancePeriod - timespent);
+		if (timespent < 0 )
+				printf("Error: distance sensor failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		else
+			usleep(distancePeriod - timespent);
 	}
 }
 
@@ -104,7 +118,10 @@ void *imuDataFunction(void *arg) {
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - imuStart;
-		usleep(imuPeriod - timespent);
+		if (timespent < 0 )
+				printf("Error: imu failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		else
+			usleep(imuPeriod - timespent);
 	}
 }
 
@@ -120,7 +137,10 @@ void *lateralControlFunction(void *arg) {
 		// determine lateral control plan
 
 		timespent = getTime() - lateralControlStart;
-		usleep(lateralControlPeriod - timespent);
+		if (timespent < 0 )
+				printf("Error: lat control failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		else
+			usleep(lateralControlPeriod - timespent);
 	}
 }
 
@@ -136,7 +156,10 @@ void *brakingFunction(void *arg) {
 		// determine braking
 
 		timespent = getTime() - brakingStart;
-		usleep(brakingPeriod - timespent);
+		if (timespent < 0 )
+				printf("Error: braking failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		else
+			usleep(brakingPeriod - timespent);
 	}
 }
 
@@ -153,6 +176,9 @@ void *DataDisplayFunction(void *arg) {
 		pthread_mutex_unlock(&statesMutex);
 
 		timespent = getTime() - dataDisplayStart;
+		if (timespent < 0 )
+				printf("Error: data display failed to meet Deadline by %d nanosecons\n", 0 - timespent);
+		else
 		usleep(dataDisplayPeriod - timespent);
 	}
 }
@@ -162,7 +188,7 @@ void setPriority(pthread_t task, int priority) {
 	struct sched_param sp;
     sp.sched_priority = priority;
     if(pthread_setschedparam(task, SCHED_RR, &sp)){
-            fprintf(stderr,"WARNING: Failed to set stepper thread"
+            fprintf(stderr,"WARNING: failed to set thread"
                     "to real-time priority\n");
     }
 }
@@ -176,7 +202,7 @@ int main()
 	pthread_mutex_init(&emergencyFlagMutex, NULL);
 
 	pthread_t kalman;
-	pthread_t photoElectric;
+	pthread_t photoelectric;
 	pthread_t imu;
 	pthread_t distance;
 	pthread_t braking;
@@ -184,7 +210,7 @@ int main()
 	pthread_t dataDisplay;
 
 	pthread_create(&kalman, NULL, kalmanFunction, NULL);
-	pthread_create(&photoElectric, NULL, photoElectricFunction, NULL);
+	pthread_create(&photoelectric, NULL, photoelectricFunction, NULL);
 	pthread_create(&imu, NULL, imuDataFunction, NULL);
 	pthread_create(&distance, NULL, distanceSensorFunction, NULL);
 	pthread_create(&braking, NULL, brakingFunction, NULL);
@@ -193,7 +219,7 @@ int main()
 
 
 	setPriority(kalman, 30);
-	setPriority(photoElectric, 30);
+	setPriority(photoelectric, 30);
 	setPriority(imu, 30);
 	setPriority(distance, 25);
 	setPriority(braking, 30);
@@ -203,6 +229,7 @@ int main()
 	while(1){
 
 		usleep(1000);
+		fflush();
 	}
 
 	pthread_mutex_destroy(&sensorDataMutex);
