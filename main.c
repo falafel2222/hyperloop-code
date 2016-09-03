@@ -10,13 +10,21 @@ const int PUSHER_PHASE = 2;
 const int COASTING_PHASE = 3;
 const int BRAKING_PHASE = 4;
 
+
+// locks sensor data (imu, distance, photoelectric)
 pthread_mutex_t sensorDataMutex;
+// locks states (pos, vel, quaternions)
 pthread_mutex_t statesMutex;
+// locks desired positions of plants
 pthread_mutex_t plantCommandMutex;
+// locks pof phase (testing, pusher, coasting, braking, etc)
 pthread_mutex_t podPhaseMutex;
+// locks emergency brake and lat control commands
 pthread_mutex_t emergencyFlagMutex;
 
 
+// variables to keep track of when each task started, used
+// to make sure they stay consistent with periods
 long kalmanStart = 0;
 long photoelectricStart = 0;
 long distanceStart = 0;
@@ -34,17 +42,24 @@ long brakingPeriod = 10000;
 long dataDisplayPeriod = 20000;
 
 
+// returns the time in microseconds
 long getTime(){
 	struct timeval currentTime;
 	gettimeofday(&currentTime, NULL);
 	return currentTime.tv_sec * (int)1e6 + currentTime.tv_usec;
 }
 
+// pos, vel, quaternions
 double states[10];
+// acc, rotvel
 double IMUData[6];
+// 8 distance sensors
 double distanceSensorData[8];
+// 9 PE sensors
 double photoelectricSensorData[9];
 
+// isset flags are needed for kalman.
+// When sensors read, set to 1. When kalman is used, set all to 0
 int imuSet = 0;
 int distanceSensorSet = 0;
 int photoelectricSet = 0;
@@ -64,10 +79,11 @@ void *kalmanFunction(void *arg) {
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		// Kalman code goes here
-		int i = 0;
-		for (i = 1; i < 20000; i++) {}
 		
 		pthread_mutex_lock(&statesMutex);
+		imuSet = 0;
+		distanceSensorSet = 0;
+		photoelectricSet = 0;
 		pthread_mutex_unlock(&statesMutex);
 
 		timespent = getTime() - kalmanStart;
@@ -85,6 +101,7 @@ void *photoelectricFunction(void *arg) {
 		// get photoelectric data
 		// calculate stuff
 		pthread_mutex_lock(&sensorDataMutex);
+		photoelectricSet = 1;
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - photoelectricStart;
@@ -102,6 +119,7 @@ void *distanceSensorFunction(void *arg) {
 		// get distance sensor data
 		// calculate stuff
 		pthread_mutex_lock(&sensorDataMutex);
+		distanceSensorSet = 1;
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - distanceStart;
@@ -118,6 +136,7 @@ void *imuDataFunction(void *arg) {
 		imuStart = getTime();
 		// get IMU data
 		pthread_mutex_lock(&sensorDataMutex);
+		imuSet = 1;
 		pthread_mutex_unlock(&sensorDataMutex);
 
 		timespent = getTime() - imuStart;
@@ -223,6 +242,9 @@ int main()
 	pthread_create(&dataDisplay, NULL, DataDisplayFunction, NULL);
 
 
+	// we're using the built-in linux Round Roboin scheduling
+	// priorities are 1-99, higher is more important
+	// important not: this is not hard real-time
 	setPriority(kalman, 30);
 	setPriority(photoelectric, 30);
 	setPriority(imu, 30);
